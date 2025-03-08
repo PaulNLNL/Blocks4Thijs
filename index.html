@@ -19,7 +19,7 @@
       margin: 20px;
       text-align: center;
     }
-    /* Score area: current score and high score */
+    /* Score area */
     #score {
       font-size: 1.2rem;
       margin-bottom: 10px;
@@ -51,7 +51,7 @@
       50% { background-color: #fff; }
       100% { background-color: #555; }
     }
-    /* Shape container styling */
+    /* Shapes container styling */
     #shapes-container {
       display: flex;
       justify-content: center;
@@ -78,7 +78,7 @@
       border: 1px solid rgba(255,255,255,0.2);
       box-shadow: inset 0 -2px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2);
     }
-    /* Brighter, coordinated color palette with bevel for both board and preview blocks */
+    /* Brighter, coordinated color palette with bevel (applied on board & preview blocks) */
     .color1 { background-color: #FF6B6B; border: 1px solid rgba(255,255,255,0.2); box-shadow: inset 0 -3px 5px rgba(0,0,0,0.4), 0 2px 3px rgba(0,0,0,0.3); }
     .color2 { background-color: #FFD93D; border: 1px solid rgba(255,255,255,0.2); box-shadow: inset 0 -3px 5px rgba(0,0,0,0.4), 0 2px 3px rgba(0,0,0,0.3); }
     .color3 { background-color: #6BCB77; border: 1px solid rgba(255,255,255,0.2); box-shadow: inset 0 -3px 5px rgba(0,0,0,0.4), 0 2px 3px rgba(0,0,0,0.3); }
@@ -130,7 +130,7 @@
     const board = [];
     let score = 0;
     let highScore = 0;
-    // Variables for drag preview
+    // Variables for drag/touch preview
     let currentDraggingShape = null;
     let currentDraggingId = null;
 
@@ -211,7 +211,6 @@
     });
 
     generateShapes();
-
     document.getElementById('restartButton').addEventListener('click', resetGame);
 
     function onDrop(e) {
@@ -342,7 +341,6 @@
         currentDraggingShape = shapeObj;
         currentDraggingId = shapeId;
         e.dataTransfer.setData('text', shapeId);
-        // Use a transparent drag image so our custom preview is visible.
         const transparentImg = document.createElement('canvas');
         transparentImg.width = 1; transparentImg.height = 1;
         e.dataTransfer.setDragImage(transparentImg, 0, 0);
@@ -352,6 +350,11 @@
         currentDraggingShape = null;
         currentDraggingId = null;
       });
+      // Add touch event handlers for mobile compatibility
+      shapeDiv.addEventListener("touchstart", onTouchStart, false);
+      shapeDiv.addEventListener("touchmove", onTouchMove, false);
+      shapeDiv.addEventListener("touchend", onTouchEnd, false);
+
       const blocks = shapeObj.blocks;
       for (let r = 0; r < blocks.length; r++) {
         const rowDiv = document.createElement('div');
@@ -371,6 +374,59 @@
       return shapeDiv;
     }
 
+    // --- Mobile touch event handlers ---
+    function onTouchStart(e) {
+      e.preventDefault();
+      // Set the current dragging shape based on the touched element
+      currentDraggingShape = window.currentShapes[e.currentTarget.id];
+      currentDraggingId = e.currentTarget.id;
+    }
+    function onTouchMove(e) {
+      e.preventDefault();
+      if (!currentDraggingShape) return;
+      const touch = e.touches[0];
+      const boardRect = boardDiv.getBoundingClientRect();
+      const x = touch.clientX, y = touch.clientY;
+      // If touch is over board, update preview
+      if (x >= boardRect.left && x <= boardRect.right && y >= boardRect.top && y <= boardRect.bottom) {
+        const relativeX = x - boardRect.left;
+        const relativeY = y - boardRect.top;
+        const col = Math.floor(relativeX / 42);
+        const row = Math.floor(relativeY / 42);
+        updatePreview(row, col);
+      } else {
+        clearPreview();
+      }
+    }
+    function onTouchEnd(e) {
+      e.preventDefault();
+      clearPreview();
+      if (!currentDraggingShape) return;
+      const touch = e.changedTouches[0];
+      const boardRect = boardDiv.getBoundingClientRect();
+      const x = touch.clientX, y = touch.clientY;
+      if (x >= boardRect.left && x <= boardRect.right && y >= boardRect.top && y <= boardRect.bottom) {
+        const relativeX = x - boardRect.left;
+        const relativeY = y - boardRect.top;
+        const col = Math.floor(relativeX / 42);
+        const row = Math.floor(relativeY / 42);
+        if (canPlaceShape(row, col, currentDraggingShape)) {
+          placeShape(row, col, currentDraggingShape);
+          const shapeDiv = document.getElementById(currentDraggingId);
+          shapesContainer.removeChild(shapeDiv);
+          delete window.currentShapes[currentDraggingId];
+          checkAndClearLines();
+          updateScore();
+          if (Object.keys(window.currentShapes).length === 0) {
+            generateShapes();
+          }
+        }
+      }
+      currentDraggingShape = null;
+      currentDraggingId = null;
+    }
+    // --- End Mobile Handlers ---
+
     // Create the preview overlay to indicate snap location
     function updatePreview(startRow, startCol) {
       clearPreview();
@@ -385,7 +441,6 @@
             const preview = document.createElement('div');
             preview.className = 'preview-block';
             if (!valid) preview.classList.add('invalid');
-            // Each cell is 40px with a 2px gap (42px step)
             preview.style.left = (targetCol * 42) + "px";
             preview.style.top = (targetRow * 42) + "px";
             preview.style.backgroundColor = getColor(currentDraggingShape.color);
@@ -412,7 +467,7 @@
       }
     }
 
-    // Restart game: update high score if needed, clear board, reset score, and generate new shapes.
+    // Restart game: update high score if needed, clear board and shapes, then generate new shapes.
     function resetGame() {
       if (score > highScore) {
         highScore = score;
@@ -420,15 +475,13 @@
       }
       score = 0;
       updateScore();
-      // Clear board array and DOM cells
       for (let r = 0; r < ROWS; r++) {
         for (let c = 0; c < COLS; c++) {
           board[r][c] = 0;
-          let cell = document.getElementById(`cell-${r}-${c}`);
+          const cell = document.getElementById(`cell-${r}-${c}`);
           cell.className = 'cell';
         }
       }
-      // Clear shapes container and generate new shapes
       shapesContainer.innerHTML = '';
       generateShapes();
     }
