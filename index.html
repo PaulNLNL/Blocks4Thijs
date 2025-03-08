@@ -4,6 +4,14 @@
   <meta charset="UTF-8">
   <title>Thijs Blocks</title>
   <style>
+    html, body {
+      touch-action: none;
+      overscroll-behavior: none;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
+    }
     body {
       margin: 0;
       font-family: sans-serif;
@@ -125,6 +133,11 @@
   <button id="restartButton">Restart Game</button>
 
   <script>
+    // Prevent default touchmove to disable scrolling
+    document.addEventListener('touchmove', function(e) {
+      e.preventDefault();
+    }, { passive: false });
+
     // Board settings (8x8)
     const ROWS = 8, COLS = 8;
     const board = [];
@@ -377,7 +390,6 @@
     // --- Mobile touch event handlers ---
     function onTouchStart(e) {
       e.preventDefault();
-      // Set the current dragging shape based on the touched element
       currentDraggingShape = window.currentShapes[e.currentTarget.id];
       currentDraggingId = e.currentTarget.id;
     }
@@ -387,7 +399,6 @@
       const touch = e.touches[0];
       const boardRect = boardDiv.getBoundingClientRect();
       const x = touch.clientX, y = touch.clientY;
-      // If touch is over board, update preview
       if (x >= boardRect.left && x <= boardRect.right && y >= boardRect.top && y <= boardRect.bottom) {
         const relativeX = x - boardRect.left;
         const relativeY = y - boardRect.top;
