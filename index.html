@@ -4,53 +4,65 @@
   <meta charset="UTF-8">
   <title>Thijs Blocks</title>
   <style>
+    /* Reset and disable scrolling/touch callout */
     html, body {
+      margin: 0;
+      padding: 0;
       touch-action: none;
       overscroll-behavior: none;
       -webkit-touch-callout: none;
       -webkit-user-select: none;
-      -ms-user-select: none;
       user-select: none;
+      height: 100%;
     }
+    /* Layout: header at top, main grows, footer at bottom */
     body {
-      margin: 0;
-      font-family: sans-serif;
       display: flex;
       flex-direction: column;
-      align-items: center;
+      font-family: sans-serif;
       background: #334;
       color: #fff;
-      height: 100vh;
-      overflow: hidden;
     }
-    h1 {
-      margin: 20px;
+    header {
+      flex: 0 0 auto;
       text-align: center;
+      padding: 10px;
     }
-    /* Score area */
+    main {
+      flex: 1 1 auto;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+    footer {
+      flex: 0 0 auto;
+      text-align: center;
+      padding: 10px;
+    }
+    /* Score area in header */
     #score {
       font-size: 1.2rem;
-      margin-bottom: 10px;
+      margin-top: 5px;
     }
-    /* Board styling */
+    /* Responsive board: square, maximized within viewport */
     #board {
-      position: relative;
-      z-index: 10;
+      width: calc(min(90vw, 80vh));
+      height: calc(min(90vw, 80vh));
       display: grid;
-      grid-template-columns: repeat(8, 40px);
-      grid-template-rows: repeat(8, 40px);
-      gap: 2px;
-      margin-bottom: 20px;
+      grid-template-columns: repeat(8, 1fr);
+      grid-gap: 2px;
       border: 2px solid #222;
       background-color: #222;
+      position: relative;
     }
     .cell {
-      width: 40px;
-      height: 40px;
+      width: 100%;
+      height: 100%;
       background-color: #555;
       border-radius: 4px;
     }
-    /* Flash animation for clearing */
+    /* Flash animation for cleared rows/columns */
     .flash {
       animation: flashAnim 300ms;
     }
@@ -59,59 +71,61 @@
       50% { background-color: #fff; }
       100% { background-color: #555; }
     }
-    /* Shapes container styling */
+    /* Shapes container (below board) */
     #shapes-container {
+      margin-top: 10px;
       display: flex;
       justify-content: center;
-      gap: 30px;
-      margin-bottom: 20px;
+      gap: 20px;
+      flex-wrap: wrap;
     }
     .shape {
       background-color: transparent;
       user-select: none;
       transition: transform 0.3s;
     }
-    .shape.draggable {
-      cursor: grab;
-    }
-    .shape:active {
-      cursor: grabbing;
-    }
+    .shape.draggable { cursor: grab; }
+    .shape:active { cursor: grabbing; }
+    /* The individual block cells inside shapes – size will be set via JS */
     .shape-cell {
-      width: 25px;
-      height: 25px;
-      margin: 1px;
+      display: inline-block;
       border-radius: 4px;
-      /* 3D bevel for shapes in container */
       border: 1px solid rgba(255,255,255,0.2);
-      box-shadow: inset 0 -2px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2);
+      box-shadow: inset 0 -2px 3px rgba(0,0,0,0.3),
+                  0 1px 2px rgba(0,0,0,0.2);
+      margin: 1px;
     }
-    /* Brighter, coordinated color palette with bevel (applied on board & preview blocks) */
-    .color1 { background-color: #FF6B6B; border: 1px solid rgba(255,255,255,0.2); box-shadow: inset 0 -3px 5px rgba(0,0,0,0.4), 0 2px 3px rgba(0,0,0,0.3); }
-    .color2 { background-color: #FFD93D; border: 1px solid rgba(255,255,255,0.2); box-shadow: inset 0 -3px 5px rgba(0,0,0,0.4), 0 2px 3px rgba(0,0,0,0.3); }
-    .color3 { background-color: #6BCB77; border: 1px solid rgba(255,255,255,0.2); box-shadow: inset 0 -3px 5px rgba(0,0,0,0.4), 0 2px 3px rgba(0,0,0,0.3); }
-    .color4 { background-color: #4D96FF; border: 1px solid rgba(255,255,255,0.2); box-shadow: inset 0 -3px 5px rgba(0,0,0,0.4), 0 2px 3px rgba(0,0,0,0.3); }
-    .color5 { background-color: #B983FF; border: 1px solid rgba(255,255,255,0.2); box-shadow: inset 0 -3px 5px rgba(0,0,0,0.4), 0 2px 3px rgba(0,0,0,0.3); }
-    .color6 { background-color: #FF9F1C; border: 1px solid rgba(255,255,255,0.2); box-shadow: inset 0 -3px 5px rgba(0,0,0,0.4), 0 2px 3px rgba(0,0,0,0.3); }
-    .color7 { background-color: #2EC4B6; border: 1px solid rgba(255,255,255,0.2); box-shadow: inset 0 -3px 5px rgba(0,0,0,0.4), 0 2px 3px rgba(0,0,0,0.3); }
-    /* Preview blocks on board */
+    /* Brighter color palette with 3D bevel (applied for board cells and preview) */
+    .color1 { background-color: #FF6B6B; border: 1px solid rgba(255,255,255,0.2); 
+              box-shadow: inset 0 -3px 5px rgba(0,0,0,0.4), 0 2px 3px rgba(0,0,0,0.3); }
+    .color2 { background-color: #FFD93D; border: 1px solid rgba(255,255,255,0.2); 
+              box-shadow: inset 0 -3px 5px rgba(0,0,0,0.4), 0 2px 3px rgba(0,0,0,0.3); }
+    .color3 { background-color: #6BCB77; border: 1px solid rgba(255,255,255,0.2); 
+              box-shadow: inset 0 -3px 5px rgba(0,0,0,0.4), 0 2px 3px rgba(0,0,0,0.3); }
+    .color4 { background-color: #4D96FF; border: 1px solid rgba(255,255,255,0.2); 
+              box-shadow: inset 0 -3px 5px rgba(0,0,0,0.4), 0 2px 3px rgba(0,0,0,0.3); }
+    .color5 { background-color: #B983FF; border: 1px solid rgba(255,255,255,0.2); 
+              box-shadow: inset 0 -3px 5px rgba(0,0,0,0.4), 0 2px 3px rgba(0,0,0,0.3); }
+    .color6 { background-color: #FF9F1C; border: 1px solid rgba(255,255,255,0.2); 
+              box-shadow: inset 0 -3px 5px rgba(0,0,0,0.4), 0 2px 3px rgba(0,0,0,0.3); }
+    .color7 { background-color: #2EC4B6; border: 1px solid rgba(255,255,255,0.2); 
+              box-shadow: inset 0 -3px 5px rgba(0,0,0,0.4), 0 2px 3px rgba(0,0,0,0.3); }
+    /* Preview blocks on board – will use dynamically computed size */
     .preview-block {
       position: absolute;
-      width: 40px;
-      height: 40px;
       opacity: 0.6;
       border: 1px solid rgba(255,255,255,0.6);
-      box-shadow: inset 0 -3px 5px rgba(0,0,0,0.4), 0 2px 3px rgba(0,0,0,0.3);
+      box-shadow: inset 0 -3px 5px rgba(0,0,0,0.4),
+                  0 2px 3px rgba(0,0,0,0.3);
       pointer-events: none;
     }
     .preview-block.invalid {
       border-color: red;
     }
-    /* Restart button styling */
+    /* Restart button in footer */
     #restartButton {
       padding: 8px 16px;
       font-size: 1rem;
-      margin-bottom: 10px;
       border: none;
       border-radius: 4px;
       background-color: #4D96FF;
@@ -126,53 +140,36 @@
 </head>
 <body>
 
-  <h1>Thijs Blocks</h1>
-  <div id="score">Score: <span id="scoreValue">0</span> | High Score: <span id="highScoreValue">0</span></div>
-  <div id="board"></div>
-  <div id="shapes-container"></div>
-  <button id="restartButton">Restart Game</button>
+  <header>
+    <h1>Thijs Blocks</h1>
+    <div id="score">Score: <span id="scoreValue">0</span> | High Score: <span id="highScoreValue">0</span></div>
+  </header>
+
+  <main>
+    <div id="board"></div>
+    <div id="shapes-container"></div>
+  </main>
+
+  <footer>
+    <button id="restartButton">Restart Game</button>
+  </footer>
 
   <script>
-    // Prevent default touchmove to disable scrolling
-    document.addEventListener('touchmove', function(e) {
-      e.preventDefault();
-    }, { passive: false });
+    // Prevent default touchmove (for mobile) so the page does not scroll.
+    document.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
 
-    // Board settings (8x8)
-    const ROWS = 8, COLS = 8;
+    // Constants for grid and gap
+    const NUM_CELLS = 8, GAP = 2;
     const board = [];
-    let score = 0;
-    let highScore = 0;
-    // Variables for drag/touch preview
-    let currentDraggingShape = null;
-    let currentDraggingId = null;
+    let score = 0, highScore = 0;
+    let currentDraggingShape = null, currentDraggingId = null;
 
     const boardDiv = document.getElementById('board');
     const shapesContainer = document.getElementById('shapes-container');
     const scoreValue = document.getElementById('scoreValue');
     const highScoreValue = document.getElementById('highScoreValue');
 
-    /* 
-      SHAPES array includes:
-      A. 1x1 single block
-      B. 2-block horizontal
-      C. 2-block vertical
-      D. Square (2x2)
-      E. T shape
-      F. 4-long horizontal
-      G. 4-long vertical
-      H. 5-long horizontal
-      I. 5-long vertical
-      J. 9-block full square (3x3)
-      K. L shape (2x3)
-      L. Mirrored L shape (2x3)
-      M. Z shape (2x3)
-      N. Mirror Z shape (2x3)
-      O. L shape (3x3) orientation 1
-      P. L shape (3x3) orientation 2
-      Q. L shape (3x3) orientation 3
-      R. L shape (3x3) orientation 4
-    */
+    // Our SHAPES array (same as before)
     const SHAPES = [
       { blocks: [[1]], color: 'color1' },
       { blocks: [[1,1]], color: 'color2' },
@@ -195,24 +192,23 @@
     ];
 
     // Initialize board array
-    for (let r = 0; r < ROWS; r++) {
+    for (let r = 0; r < NUM_CELLS; r++) {
       board[r] = [];
-      for (let c = 0; c < COLS; c++) {
+      for (let c = 0; c < NUM_CELLS; c++) {
         board[r][c] = 0;
       }
     }
 
-    // Create board cells
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
+    // Create board cells (the grid cells are created by CSS Grid, but we add divs with id)
+    for (let r = 0; r < NUM_CELLS; r++) {
+      for (let c = 0; c < NUM_CELLS; c++) {
         const cell = document.createElement('div');
         cell.className = 'cell';
         cell.id = `cell-${r}-${c}`;
         cell.addEventListener('dragenter', e => { e.preventDefault(); });
         cell.addEventListener('dragover', e => {
           e.preventDefault();
-          const parts = cell.id.split('-');
-          updatePreview(parseInt(parts[1]), parseInt(parts[2]));
+          updatePreview(r, c);
         });
         cell.addEventListener('dragleave', e => { clearPreview(); });
         cell.addEventListener('drop', onDrop);
@@ -226,15 +222,20 @@
     generateShapes();
     document.getElementById('restartButton').addEventListener('click', resetGame);
 
+    // Utility: compute current cell size (based on board's computed width)
+    function getCellSize() {
+      // boardDiv.offsetWidth equals the board's width (which we set via CSS)
+      return (boardDiv.offsetWidth - (NUM_CELLS - 1) * GAP) / NUM_CELLS;
+    }
+
     function onDrop(e) {
       e.preventDefault();
       clearPreview();
       const shapeId = e.dataTransfer.getData('text');
       const shapeObj = window.currentShapes[shapeId];
       if (!shapeObj) return;
-      const cellId = e.target.id;
-      if (!cellId.startsWith('cell-')) return;
-      const parts = cellId.split('-');
+      // Determine drop cell from event target's id
+      const parts = e.target.id.split('-');
       const row = parseInt(parts[1]), col = parseInt(parts[2]);
       if (canPlaceShape(row, col, shapeObj)) {
         placeShape(row, col, shapeObj);
@@ -243,9 +244,7 @@
         delete window.currentShapes[shapeId];
         checkAndClearLines();
         updateScore();
-        if (Object.keys(window.currentShapes).length === 0) {
-          generateShapes();
-        }
+        if (Object.keys(window.currentShapes).length === 0) generateShapes();
       }
       currentDraggingShape = null;
       currentDraggingId = null;
@@ -257,7 +256,7 @@
         for (let c = 0; c < blocks[r].length; c++) {
           if (blocks[r][c] === 1) {
             const br = row + r, bc = col + c;
-            if (br < 0 || br >= ROWS || bc < 0 || bc >= COLS) return false;
+            if (br < 0 || br >= NUM_CELLS || bc < 0 || bc >= NUM_CELLS) return false;
             if (board[br][bc] !== 0) return false;
           }
         }
@@ -277,61 +276,52 @@
           }
         }
       }
-      const placedCount = blocks.reduce((sum, rowArr) => sum + rowArr.reduce((s, v) => s + v, 0), 0);
+      const placedCount = blocks.reduce((sum, arr) => sum + arr.reduce((s, v) => s + v, 0), 0);
       score += placedCount;
     }
 
-    // Flash cells before clearing full rows/columns
+    // Flash animation for full rows/columns
     function checkAndClearLines() {
-      for (let r = 0; r < ROWS; r++) {
+      for (let r = 0; r < NUM_CELLS; r++) {
         if (board[r].every(cell => cell !== 0)) {
-          for (let c = 0; c < COLS; c++) {
-            const cellDiv = document.getElementById(`cell-${r}-${c}`);
-            cellDiv.classList.add('flash');
+          for (let c = 0; c < NUM_CELLS; c++) {
+            document.getElementById(`cell-${r}-${c}`).classList.add('flash');
           }
           setTimeout(() => {
-            board[r] = Array(COLS).fill(0);
-            for (let c = 0; c < COLS; c++) {
-              const cellDiv = document.getElementById(`cell-${r}-${c}`);
-              cellDiv.className = 'cell';
+            board[r] = Array(NUM_CELLS).fill(0);
+            for (let c = 0; c < NUM_CELLS; c++) {
+              document.getElementById(`cell-${r}-${c}`).className = 'cell';
             }
-            score += COLS;
+            score += NUM_CELLS;
             updateScore();
           }, 300);
         }
       }
-      for (let c = 0; c < COLS; c++) {
+      for (let c = 0; c < NUM_CELLS; c++) {
         let colFull = true;
-        for (let r = 0; r < ROWS; r++) {
+        for (let r = 0; r < NUM_CELLS; r++) {
           if (board[r][c] === 0) { colFull = false; break; }
         }
         if (colFull) {
-          for (let r = 0; r < ROWS; r++) {
-            const cellDiv = document.getElementById(`cell-${r}-${c}`);
-            cellDiv.classList.add('flash');
+          for (let r = 0; r < NUM_CELLS; r++) {
+            document.getElementById(`cell-${r}-${c}`).classList.add('flash');
           }
           setTimeout(() => {
-            for (let r = 0; r < ROWS; r++) {
+            for (let r = 0; r < NUM_CELLS; r++) {
               board[r][c] = 0;
-              const cellDiv = document.getElementById(`cell-${r}-${c}`);
-              cellDiv.className = 'cell';
+              document.getElementById(`cell-${r}-${c}`).className = 'cell';
             }
-            score += ROWS;
+            score += NUM_CELLS;
             updateScore();
           }, 300);
         }
       }
     }
 
-    function updateScore() {
-      scoreValue.textContent = score;
-    }
+    function updateScore() { scoreValue.textContent = score; }
+    function updateHighScore() { highScoreValue.textContent = highScore; }
 
-    function updateHighScore() {
-      highScoreValue.textContent = highScore;
-    }
-
-    // Generate three shapes in the container
+    // Generate three random shapes
     function generateShapes() {
       window.currentShapes = {};
       for (let i = 0; i < 3; i++) {
@@ -344,7 +334,7 @@
       }
     }
 
-    // Render shape for the container (smaller scale)
+    // Render shape for the shapes container. Their block size is set relative to board cell size.
     function renderShape(shapeObj, shapeId) {
       const shapeDiv = document.createElement('div');
       shapeDiv.className = 'shape draggable';
@@ -363,11 +353,13 @@
         currentDraggingShape = null;
         currentDraggingId = null;
       });
-      // Add touch event handlers for mobile compatibility
+      // Add touch event handlers for mobile
       shapeDiv.addEventListener("touchstart", onTouchStart, false);
       shapeDiv.addEventListener("touchmove", onTouchMove, false);
       shapeDiv.addEventListener("touchend", onTouchEnd, false);
 
+      // Compute shape cell size: 0.625 of board cell size
+      const shapeCellSize = getCellSize() * 0.625;
       const blocks = shapeObj.blocks;
       for (let r = 0; r < blocks.length; r++) {
         const rowDiv = document.createElement('div');
@@ -375,6 +367,8 @@
         for (let c = 0; c < blocks[r].length; c++) {
           const blockCell = document.createElement('div');
           blockCell.className = 'shape-cell';
+          blockCell.style.width = shapeCellSize + "px";
+          blockCell.style.height = shapeCellSize + "px";
           if (blocks[r][c] === 1) {
             blockCell.classList.add(shapeObj.color);
           } else {
@@ -402,8 +396,9 @@
       if (x >= boardRect.left && x <= boardRect.right && y >= boardRect.top && y <= boardRect.bottom) {
         const relativeX = x - boardRect.left;
         const relativeY = y - boardRect.top;
-        const col = Math.floor(relativeX / 42);
-        const row = Math.floor(relativeY / 42);
+        const cellSize = getCellSize();
+        const col = Math.floor(relativeX / (cellSize + GAP));
+        const row = Math.floor(relativeY / (cellSize + GAP));
         updatePreview(row, col);
       } else {
         clearPreview();
@@ -419,8 +414,9 @@
       if (x >= boardRect.left && x <= boardRect.right && y >= boardRect.top && y <= boardRect.bottom) {
         const relativeX = x - boardRect.left;
         const relativeY = y - boardRect.top;
-        const col = Math.floor(relativeX / 42);
-        const row = Math.floor(relativeY / 42);
+        const cellSize = getCellSize();
+        const col = Math.floor(relativeX / (cellSize + GAP));
+        const row = Math.floor(relativeY / (cellSize + GAP));
         if (canPlaceShape(row, col, currentDraggingShape)) {
           placeShape(row, col, currentDraggingShape);
           const shapeDiv = document.getElementById(currentDraggingId);
@@ -428,9 +424,7 @@
           delete window.currentShapes[currentDraggingId];
           checkAndClearLines();
           updateScore();
-          if (Object.keys(window.currentShapes).length === 0) {
-            generateShapes();
-          }
+          if (Object.keys(window.currentShapes).length === 0) generateShapes();
         }
       }
       currentDraggingShape = null;
@@ -438,33 +432,34 @@
     }
     // --- End Mobile Handlers ---
 
-    // Create the preview overlay to indicate snap location
+    // Create preview overlay on board using computed cell size
     function updatePreview(startRow, startCol) {
       clearPreview();
       if (!currentDraggingShape) return;
       const valid = canPlaceShape(startRow, startCol, currentDraggingShape);
+      const cellSize = getCellSize();
       const blocks = currentDraggingShape.blocks;
       for (let r = 0; r < blocks.length; r++) {
         for (let c = 0; c < blocks[r].length; c++) {
           if (blocks[r][c] === 1) {
             const targetRow = startRow + r, targetCol = startCol + c;
-            if (targetRow < 0 || targetRow >= ROWS || targetCol < 0 || targetCol >= COLS) continue;
+            if (targetRow < 0 || targetRow >= NUM_CELLS || targetCol < 0 || targetCol >= NUM_CELLS) continue;
             const preview = document.createElement('div');
             preview.className = 'preview-block';
             if (!valid) preview.classList.add('invalid');
-            preview.style.left = (targetCol * 42) + "px";
-            preview.style.top = (targetRow * 42) + "px";
+            preview.style.width = cellSize + "px";
+            preview.style.height = cellSize + "px";
+            preview.style.left = (targetCol * (cellSize + GAP)) + "px";
+            preview.style.top = (targetRow * (cellSize + GAP)) + "px";
             preview.style.backgroundColor = getColor(currentDraggingShape.color);
             boardDiv.appendChild(preview);
           }
         }
       }
     }
-
     function clearPreview() {
       document.querySelectorAll('.preview-block').forEach(el => el.parentNode.removeChild(el));
     }
-
     function getColor(colorClass) {
       switch(colorClass) {
         case 'color1': return '#FF6B6B';
@@ -477,20 +472,14 @@
         default: return '#ffffff';
       }
     }
-
-    // Restart game: update high score if needed, clear board and shapes, then generate new shapes.
+    // Restart game: update high score if needed, clear board, reset score, and generate new shapes.
     function resetGame() {
-      if (score > highScore) {
-        highScore = score;
-        updateHighScore();
-      }
-      score = 0;
-      updateScore();
-      for (let r = 0; r < ROWS; r++) {
-        for (let c = 0; c < COLS; c++) {
+      if (score > highScore) { highScore = score; updateHighScore(); }
+      score = 0; updateScore();
+      for (let r = 0; r < NUM_CELLS; r++) {
+        for (let c = 0; c < NUM_CELLS; c++) {
           board[r][c] = 0;
-          const cell = document.getElementById(`cell-${r}-${c}`);
-          cell.className = 'cell';
+          document.getElementById(`cell-${r}-${c}`).className = 'cell';
         }
       }
       shapesContainer.innerHTML = '';
