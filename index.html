@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <title>Thijs Blocks</title>
   <style>
-    /* Reset and disable scrolling/touch callout */
+    /* Reset, disable scrolling and selection */
     html, body {
       margin: 0;
       padding: 0;
@@ -15,7 +15,7 @@
       user-select: none;
       height: 100%;
     }
-    /* Layout: header at top, main grows, footer at bottom */
+    /* Layout: header at top, main fills remaining space, footer at bottom */
     body {
       display: flex;
       flex-direction: column;
@@ -32,23 +32,22 @@
       flex: 1 1 auto;
       display: flex;
       flex-direction: column;
-      justify-content: center;
       align-items: center;
+      justify-content: center;
+      overflow: hidden;
     }
     footer {
       flex: 0 0 auto;
       text-align: center;
       padding: 10px;
     }
-    /* Score area in header */
+    /* Score area */
     #score {
       font-size: 1.2rem;
       margin-top: 5px;
     }
-    /* Responsive board: square, maximized within viewport */
+    /* Board: initially empty—size will be set dynamically */
     #board {
-      width: calc(min(90vw, 80vh));
-      height: calc(min(90vw, 80vh));
       display: grid;
       grid-template-columns: repeat(8, 1fr);
       grid-gap: 2px;
@@ -62,7 +61,7 @@
       background-color: #555;
       border-radius: 4px;
     }
-    /* Flash animation for cleared rows/columns */
+    /* Flash animation for cleared lines */
     .flash {
       animation: flashAnim 300ms;
     }
@@ -71,13 +70,13 @@
       50% { background-color: #fff; }
       100% { background-color: #555; }
     }
-    /* Shapes container (below board) */
+    /* Shapes container */
     #shapes-container {
       margin-top: 10px;
       display: flex;
+      flex-wrap: wrap;
       justify-content: center;
       gap: 20px;
-      flex-wrap: wrap;
     }
     .shape {
       background-color: transparent;
@@ -86,7 +85,6 @@
     }
     .shape.draggable { cursor: grab; }
     .shape:active { cursor: grabbing; }
-    /* The individual block cells inside shapes – size will be set via JS */
     .shape-cell {
       display: inline-block;
       border-radius: 4px;
@@ -95,22 +93,22 @@
                   0 1px 2px rgba(0,0,0,0.2);
       margin: 1px;
     }
-    /* Brighter color palette with 3D bevel (applied for board cells and preview) */
-    .color1 { background-color: #FF6B6B; border: 1px solid rgba(255,255,255,0.2); 
+    /* Color palette with 3D bevel (for board cells and previews) */
+    .color1 { background-color: #FF6B6B; border: 1px solid rgba(255,255,255,0.2);
               box-shadow: inset 0 -3px 5px rgba(0,0,0,0.4), 0 2px 3px rgba(0,0,0,0.3); }
-    .color2 { background-color: #FFD93D; border: 1px solid rgba(255,255,255,0.2); 
+    .color2 { background-color: #FFD93D; border: 1px solid rgba(255,255,255,0.2);
               box-shadow: inset 0 -3px 5px rgba(0,0,0,0.4), 0 2px 3px rgba(0,0,0,0.3); }
-    .color3 { background-color: #6BCB77; border: 1px solid rgba(255,255,255,0.2); 
+    .color3 { background-color: #6BCB77; border: 1px solid rgba(255,255,255,0.2);
               box-shadow: inset 0 -3px 5px rgba(0,0,0,0.4), 0 2px 3px rgba(0,0,0,0.3); }
-    .color4 { background-color: #4D96FF; border: 1px solid rgba(255,255,255,0.2); 
+    .color4 { background-color: #4D96FF; border: 1px solid rgba(255,255,255,0.2);
               box-shadow: inset 0 -3px 5px rgba(0,0,0,0.4), 0 2px 3px rgba(0,0,0,0.3); }
-    .color5 { background-color: #B983FF; border: 1px solid rgba(255,255,255,0.2); 
+    .color5 { background-color: #B983FF; border: 1px solid rgba(255,255,255,0.2);
               box-shadow: inset 0 -3px 5px rgba(0,0,0,0.4), 0 2px 3px rgba(0,0,0,0.3); }
-    .color6 { background-color: #FF9F1C; border: 1px solid rgba(255,255,255,0.2); 
+    .color6 { background-color: #FF9F1C; border: 1px solid rgba(255,255,255,0.2);
               box-shadow: inset 0 -3px 5px rgba(0,0,0,0.4), 0 2px 3px rgba(0,0,0,0.3); }
-    .color7 { background-color: #2EC4B6; border: 1px solid rgba(255,255,255,0.2); 
+    .color7 { background-color: #2EC4B6; border: 1px solid rgba(255,255,255,0.2);
               box-shadow: inset 0 -3px 5px rgba(0,0,0,0.4), 0 2px 3px rgba(0,0,0,0.3); }
-    /* Preview blocks on board – will use dynamically computed size */
+    /* Preview blocks */
     .preview-block {
       position: absolute;
       opacity: 0.6;
@@ -119,13 +117,11 @@
                   0 2px 3px rgba(0,0,0,0.3);
       pointer-events: none;
     }
-    .preview-block.invalid {
-      border-color: red;
-    }
-    /* Restart button in footer */
+    .preview-block.invalid { border-color: red; }
+    /* Restart button */
     #restartButton {
-      padding: 8px 16px;
-      font-size: 1rem;
+      padding: 12px 20px;
+      font-size: 1.2rem;
       border: none;
       border-radius: 4px;
       background-color: #4D96FF;
@@ -133,9 +129,7 @@
       cursor: pointer;
       transition: background-color 0.2s;
     }
-    #restartButton:hover {
-      background-color: #3B7DDD;
-    }
+    #restartButton:hover { background-color: #3B7DDD; }
   </style>
 </head>
 <body>
@@ -155,10 +149,9 @@
   </footer>
 
   <script>
-    // Prevent default touchmove (for mobile) so the page does not scroll.
+    // Prevent default touchmove to stop page scrolling.
     document.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
 
-    // Constants for grid and gap
     const NUM_CELLS = 8, GAP = 2;
     const board = [];
     let score = 0, highScore = 0;
@@ -169,7 +162,7 @@
     const scoreValue = document.getElementById('scoreValue');
     const highScoreValue = document.getElementById('highScoreValue');
 
-    // Our SHAPES array (same as before)
+    // Same SHAPES array as before
     const SHAPES = [
       { blocks: [[1]], color: 'color1' },
       { blocks: [[1,1]], color: 'color2' },
@@ -199,7 +192,7 @@
       }
     }
 
-    // Create board cells (the grid cells are created by CSS Grid, but we add divs with id)
+    // Create board cells
     for (let r = 0; r < NUM_CELLS; r++) {
       for (let c = 0; c < NUM_CELLS; c++) {
         const cell = document.createElement('div');
@@ -222,9 +215,25 @@
     generateShapes();
     document.getElementById('restartButton').addEventListener('click', resetGame);
 
-    // Utility: compute current cell size (based on board's computed width)
+    // Adjust layout on load, resize, and orientation change
+    function adjustLayout() {
+      const header = document.querySelector('header');
+      const footer = document.querySelector('footer');
+      const main = document.querySelector('main');
+      // Set main height to fill available viewport
+      main.style.height = (window.innerHeight - header.offsetHeight - footer.offsetHeight) + "px";
+      // Let board size be the smaller of main width or (main height minus shapes container height and a 20px margin)
+      const shapesHeight = shapesContainer.offsetHeight || 100;
+      const boardSize = Math.min(main.clientWidth, main.clientHeight - shapesHeight - 20);
+      boardDiv.style.width = boardSize + "px";
+      boardDiv.style.height = boardSize + "px";
+    }
+    window.addEventListener('resize', adjustLayout);
+    window.addEventListener('orientationchange', adjustLayout);
+    adjustLayout();
+
+    // Returns current computed cell size (accounting for gaps)
     function getCellSize() {
-      // boardDiv.offsetWidth equals the board's width (which we set via CSS)
       return (boardDiv.offsetWidth - (NUM_CELLS - 1) * GAP) / NUM_CELLS;
     }
 
@@ -234,7 +243,6 @@
       const shapeId = e.dataTransfer.getData('text');
       const shapeObj = window.currentShapes[shapeId];
       if (!shapeObj) return;
-      // Determine drop cell from event target's id
       const parts = e.target.id.split('-');
       const row = parseInt(parts[1]), col = parseInt(parts[2]);
       if (canPlaceShape(row, col, shapeObj)) {
@@ -271,8 +279,7 @@
           if (blocks[r][c] === 1) {
             const br = row + r, bc = col + c;
             board[br][bc] = shapeObj.color;
-            const cellDiv = document.getElementById(`cell-${br}-${bc}`);
-            cellDiv.classList.add(shapeObj.color);
+            document.getElementById(`cell-${br}-${bc}`).classList.add(shapeObj.color);
           }
         }
       }
@@ -280,7 +287,6 @@
       score += placedCount;
     }
 
-    // Flash animation for full rows/columns
     function checkAndClearLines() {
       for (let r = 0; r < NUM_CELLS; r++) {
         if (board[r].every(cell => cell !== 0)) {
@@ -321,7 +327,6 @@
     function updateScore() { scoreValue.textContent = score; }
     function updateHighScore() { highScoreValue.textContent = highScore; }
 
-    // Generate three random shapes
     function generateShapes() {
       window.currentShapes = {};
       for (let i = 0; i < 3; i++) {
@@ -334,7 +339,6 @@
       }
     }
 
-    // Render shape for the shapes container. Their block size is set relative to board cell size.
     function renderShape(shapeObj, shapeId) {
       const shapeDiv = document.createElement('div');
       shapeDiv.className = 'shape draggable';
@@ -353,12 +357,12 @@
         currentDraggingShape = null;
         currentDraggingId = null;
       });
-      // Add touch event handlers for mobile
+      // Touch event handlers for mobile
       shapeDiv.addEventListener("touchstart", onTouchStart, false);
       shapeDiv.addEventListener("touchmove", onTouchMove, false);
       shapeDiv.addEventListener("touchend", onTouchEnd, false);
 
-      // Compute shape cell size: 0.625 of board cell size
+      // Use 62.5% of board cell size for shape blocks
       const shapeCellSize = getCellSize() * 0.625;
       const blocks = shapeObj.blocks;
       for (let r = 0; r < blocks.length; r++) {
@@ -381,7 +385,7 @@
       return shapeDiv;
     }
 
-    // --- Mobile touch event handlers ---
+    // --- Mobile Touch Handlers ---
     function onTouchStart(e) {
       e.preventDefault();
       currentDraggingShape = window.currentShapes[e.currentTarget.id];
@@ -432,7 +436,6 @@
     }
     // --- End Mobile Handlers ---
 
-    // Create preview overlay on board using computed cell size
     function updatePreview(startRow, startCol) {
       clearPreview();
       if (!currentDraggingShape) return;
@@ -472,10 +475,10 @@
         default: return '#ffffff';
       }
     }
-    // Restart game: update high score if needed, clear board, reset score, and generate new shapes.
     function resetGame() {
       if (score > highScore) { highScore = score; updateHighScore(); }
-      score = 0; updateScore();
+      score = 0;
+      updateScore();
       for (let r = 0; r < NUM_CELLS; r++) {
         for (let c = 0; c < NUM_CELLS; c++) {
           board[r][c] = 0;
