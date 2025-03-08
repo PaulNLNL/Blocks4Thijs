@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <title>Thijs Blocks</title>
   <style>
-    /* Basic reset and disable overscroll, selection */
+    /* Basic reset, disable overscroll and selection */
     html, body {
       margin: 0;
       padding: 0;
@@ -28,6 +28,14 @@
       text-align: center;
       padding: 10px;
     }
+    header h1 {
+      font-size: 2.4rem; /* doubled from ~1.2rem baseline */
+      margin: 0;
+    }
+    #score {
+      font-size: 2.4rem; /* doubled */
+      margin-top: 5px;
+    }
     main {
       flex: 1 1 auto;
       display: flex;
@@ -41,12 +49,20 @@
       text-align: center;
       padding: 10px;
     }
-    /* Score text */
-    #score {
-      font-size: 1.2rem;
-      margin-top: 5px;
+    #restartButton {
+      padding: 20px 30px; /* increased */
+      font-size: 2.4rem; /* doubled */
+      border: none;
+      border-radius: 4px;
+      background-color: #4D96FF;
+      color: #fff;
+      cursor: pointer;
+      transition: background-color 0.2s;
     }
-    /* The board: grid of 8x8 cells, size set dynamically */
+    #restartButton:hover {
+      background-color: #3B7DDD;
+    }
+    /* The board: grid of 8x8 cells; size set dynamically */
     #board {
       display: grid;
       grid-template-columns: repeat(8, 1fr);
@@ -62,7 +78,7 @@
       background-color: #555;
       border-radius: 4px;
     }
-    /* Flash animation for cleared rows/columns */
+    /* Flash animation */
     .flash {
       animation: flashAnim 300ms;
     }
@@ -71,7 +87,7 @@
       50% { background-color: #fff; }
       100% { background-color: #555; }
     }
-    /* Shapes container: sits below the board */
+    /* Shapes container */
     #shapes-container {
       width: 100%;
       display: flex;
@@ -85,9 +101,12 @@
       user-select: none;
       transition: transform 0.3s;
     }
-    .shape.draggable { cursor: grab; }
-    .shape:active { cursor: grabbing; }
-    /* The shape's internal blocks; size will be set via JS */
+    .shape.draggable {
+      cursor: grab;
+    }
+    .shape:active {
+      cursor: grabbing;
+    }
     .shape-cell {
       display: inline-block;
       border-radius: 4px;
@@ -96,7 +115,7 @@
                   0 1px 2px rgba(0,0,0,0.2);
       margin: 1px;
     }
-    /* Color palette with 3D bevel for board cells and previews */
+    /* Color palette with 3D bevel */
     .color1 { background-color: #FF6B6B; border: 1px solid rgba(255,255,255,0.2); 
               box-shadow: inset 0 -3px 5px rgba(0,0,0,0.4), 0 2px 3px rgba(0,0,0,0.3); }
     .color2 { background-color: #FFD93D; border: 1px solid rgba(255,255,255,0.2); 
@@ -120,24 +139,14 @@
                   0 2px 3px rgba(0,0,0,0.3);
       pointer-events: none;
     }
-    .preview-block.invalid { border-color: red; }
-    /* Restart button */
-    #restartButton {
-      padding: 12px 20px;
-      font-size: 1.2rem;
-      border: none;
-      border-radius: 4px;
-      background-color: #4D96FF;
-      color: #fff;
-      cursor: pointer;
-      transition: background-color 0.2s;
+    .preview-block.invalid {
+      border-color: red;
     }
-    #restartButton:hover { background-color: #3B7DDD; }
-    /* Increase text size on small screens */
+    /* Increase text sizes on small screens */
     @media (max-width: 600px) {
-      h1 { font-size: 1.8rem; }
-      #score { font-size: 1.4rem; }
-      #restartButton { font-size: 1.4rem; padding: 14px 24px; }
+      header h1 { font-size: 2.8rem; }
+      #score { font-size: 2.8rem; }
+      #restartButton { font-size: 2.8rem; padding: 24px 36px; }
     }
   </style>
 </head>
@@ -158,7 +167,7 @@
   </footer>
 
   <script>
-    // Prevent default touchmove (no page scrolling)
+    // Prevent page scrolling on touch devices.
     document.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
 
     const NUM_CELLS = 8, GAP = 2;
@@ -171,7 +180,7 @@
     const scoreValue = document.getElementById('scoreValue');
     const highScoreValue = document.getElementById('highScoreValue');
 
-    // SHAPES array remains the same
+    // SHAPES array (same as before)
     const SHAPES = [
       { blocks: [[1]], color: 'color1' },
       { blocks: [[1,1]], color: 'color2' },
@@ -201,7 +210,7 @@
       }
     }
 
-    // Create board cells (using CSS Grid, we insert cells with unique IDs)
+    // Create board cells (the board is managed by CSS Grid)
     for (let r = 0; r < NUM_CELLS; r++) {
       for (let c = 0; c < NUM_CELLS; c++) {
         const cell = document.createElement('div');
@@ -224,23 +233,24 @@
     generateShapes();
     document.getElementById('restartButton').addEventListener('click', resetGame);
 
-    // Adjust layout on load/resize/orientation change
+    // Adjust layout on load, resize, orientation change
     function adjustLayout() {
       const header = document.querySelector('header');
       const footer = document.querySelector('footer');
       const main = document.querySelector('main');
       const availableHeight = window.innerHeight - header.offsetHeight - footer.offsetHeight;
-      // Let board occupy about 55% of main height (to be above center) 
-      // and shapes container get the remaining space.
+      // Position board in upper part of main (about 55% of available main height)
       const boardSize = Math.min(main.clientWidth, availableHeight * 0.55);
       boardDiv.style.width = boardSize + "px";
       boardDiv.style.height = boardSize + "px";
+      // Re-render shapes so their size scales with board cell size.
+      renderAllShapes();
     }
     window.addEventListener('resize', adjustLayout);
     window.addEventListener('orientationchange', adjustLayout);
     adjustLayout();
 
-    // Compute current board cell size (accounting for grid gap)
+    // Return the computed size of one board cell (accounting for grid gap)
     function getCellSize() {
       return (boardDiv.offsetWidth - (NUM_CELLS - 1) * GAP) / NUM_CELLS;
     }
@@ -347,6 +357,21 @@
       }
     }
 
+    // Render all shapes again (used on layout adjustment)
+    function renderAllShapes() {
+      // Clear existing shapes from container
+      shapesContainer.innerHTML = '';
+      // Re-render using current shapes data
+      for (const shapeId in window.currentShapes) {
+        const shapeData = window.currentShapes[shapeId];
+        const shapeDiv = renderShape(shapeData, shapeId);
+        shapesContainer.appendChild(shapeDiv);
+      }
+    }
+
+    // Render a shape for the shapes container.
+    // Here we set each block’s size to be 40% of the board cell size,
+    // with a minimum effective board cell size of 50px.
     function renderShape(shapeObj, shapeId) {
       const shapeDiv = document.createElement('div');
       shapeDiv.className = 'shape draggable';
@@ -365,24 +390,24 @@
         currentDraggingShape = null;
         currentDraggingId = null;
       });
-      // Touch event handlers for mobile
+      // Touch events for mobile
       shapeDiv.addEventListener("touchstart", onTouchStart, false);
       shapeDiv.addEventListener("touchmove", onTouchMove, false);
       shapeDiv.addEventListener("touchend", onTouchEnd, false);
-      
-      // Compute desired shape cell size:
-      // Default: 40% of board cell size.
-      let boardCellSize = getCellSize();
+
+      // Compute effective board cell size (minimum 50px)
+      let boardCellSize = Math.max(getCellSize(), 50);
+      // Desired block size is 40% of that.
       let desiredSize = boardCellSize * 0.4;
-      // Also ensure the shape fits in one-third of shapesContainer width.
-      const containerWidth = shapesContainer.clientWidth || window.innerWidth;
-      const maxShapeWidth = (containerWidth - 40) / 3; // 40px total gap as an estimate.
-      // Determine shape's block width.
+      // Compute the shape's width in blocks.
       let shapeWidth = 0;
       shapeObj.blocks.forEach(row => {
         shapeWidth = Math.max(shapeWidth, row.length);
       });
-      if (desiredSize * shapeWidth > maxShapeWidth) {
+      // Ensure the entire shape fits in the shapes container.
+      // We reserve a margin of one board cell size on either side.
+      const maxShapeWidth = shapesContainer.clientWidth - 2 * boardCellSize;
+      if (shapeWidth * desiredSize > maxShapeWidth) {
         desiredSize = maxShapeWidth / shapeWidth;
       }
       
@@ -407,7 +432,7 @@
       return shapeDiv;
     }
 
-    // Mobile touch handlers
+    // Mobile touch event handlers
     function onTouchStart(e) {
       e.preventDefault();
       currentDraggingShape = window.currentShapes[e.currentTarget.id];
@@ -481,9 +506,11 @@
         }
       }
     }
+
     function clearPreview() {
       document.querySelectorAll('.preview-block').forEach(el => el.parentNode.removeChild(el));
     }
+
     function getColor(colorClass) {
       switch(colorClass) {
         case 'color1': return '#FF6B6B';
@@ -496,6 +523,7 @@
         default: return '#ffffff';
       }
     }
+
     function resetGame() {
       if (score > highScore) { highScore = score; updateHighScore(); }
       score = 0;
