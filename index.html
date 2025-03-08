@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Thijs Blast</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: #334;
+      color: #fff;
+      height: 100vh;
+      overflow: hidden;
+    }
+    h1 {
+      margin: 20px;
+      text-align: center;
+    }
+    /* Score area: current score and high score */
+    #score {
+      font-size: 1.2rem;
+      margin-bottom: 10px;
+    }
+    /* Board styling */
+    #board {
+      position: relative;
+      z-index: 10;
+      display: grid;
+      grid-template-columns: repeat(8, 40px);
+      grid-template-rows: repeat(8, 40px);
+      gap: 2px;
+      margin-bottom: 20px;
+      border: 2px solid #222;
+      background-color: #222;
+    }
+    .cell {
+      width: 40px;
+      height: 40px;
+      background-color: #555;
+      border-radius: 4px;
+    }
+    /* Flash animation for clearing */
+    .flash {
+      animation: flashAnim 300ms;
+    }
+    @keyframes flashAnim {
+      0% { background-color: #fff; }
+      50% { background-color: #fff; }
+      100% { background-color: #555; }
+    }
+    /* Shape container styling */
+    #shapes-container {
+      display: flex;
+      justify-content: center;
+      gap: 30px;
+      margin-bottom: 20px;
+    }
+    .shape {
+      background-color: transparent;
+      user-select: none;
+      transition: transform 0.3s;
+    }
+    .shape.draggable {
+      cursor: grab;
+    }
+    .shape:active {
+      cursor: grabbing;
+    }
+    .shape-cell {
+      width: 25px;
+      height: 25px;
+      margin: 1px;
+      border-radius: 4px;
+      /* 3D bevel for shapes in container */
+      border: 1px solid rgba(255,255,255,0.2);
+      box-shadow: inset 0 -2px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2);
+    }
+    /* Brighter, coordinated color palette with bevel for both board and preview blocks */
+    .color1 { background-color: #FF6B6B; border: 1px solid rgba(255,255,255,0.2); box-shadow: inset 0 -3px 5px rgba(0,0,0,0.4), 0 2px 3px rgba(0,0,0,0.3); }
+    .color2 { background-color: #FFD93D; border: 1px solid rgba(255,255,255,0.2); box-shadow: inset 0 -3px 5px rgba(0,0,0,0.4), 0 2px 3px rgba(0,0,0,0.3); }
+    .color3 { background-color: #6BCB77; border: 1px solid rgba(255,255,255,0.2); box-shadow: inset 0 -3px 5px rgba(0,0,0,0.4), 0 2px 3px rgba(0,0,0,0.3); }
+    .color4 { background-color: #4D96FF; border: 1px solid rgba(255,255,255,0.2); box-shadow: inset 0 -3px 5px rgba(0,0,0,0.4), 0 2px 3px rgba(0,0,0,0.3); }
+    .color5 { background-color: #B983FF; border: 1px solid rgba(255,255,255,0.2); box-shadow: inset 0 -3px 5px rgba(0,0,0,0.4), 0 2px 3px rgba(0,0,0,0.3); }
+    .color6 { background-color: #FF9F1C; border: 1px solid rgba(255,255,255,0.2); box-shadow: inset 0 -3px 5px rgba(0,0,0,0.4), 0 2px 3px rgba(0,0,0,0.3); }
+    .color7 { background-color: #2EC4B6; border: 1px solid rgba(255,255,255,0.2); box-shadow: inset 0 -3px 5px rgba(0,0,0,0.4), 0 2px 3px rgba(0,0,0,0.3); }
+    /* Preview blocks on board */
+    .preview-block {
+      position: absolute;
+      width: 40px;
+      height: 40px;
+      opacity: 0.6;
+      border: 1px solid rgba(255,255,255,0.6);
+      box-shadow: inset 0 -3px 5px rgba(0,0,0,0.4), 0 2px 3px rgba(0,0,0,0.3);
+      pointer-events: none;
+    }
+    .preview-block.invalid {
+      border-color: red;
+    }
+    /* Restart button styling */
+    #restartButton {
+      padding: 8px 16px;
+      font-size: 1rem;
+      margin-bottom: 10px;
+      border: none;
+      border-radius: 4px;
+      background-color: #4D96FF;
+      color: #fff;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    #restartButton:hover {
+      background-color: #3B7DDD;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Thijs Blast</h1>
+  <div id="score">Score: <span id="scoreValue">0</span> | High Score: <span id="highScoreValue">0</span></div>
+  <div id="board"></div>
+  <div id="shapes-container"></div>
+  <button id="restartButton">Restart Game</button>
+
+  <script>
+    // Board settings (8x8)
+    const ROWS = 8, COLS = 8;
+    const board = [];
+    let score = 0;
+    let highScore = 0;
+    // Variables for drag preview
+    let currentDraggingShape = null;
+    let currentDraggingId = null;
+
+    const boardDiv = document.getElementById('board');
+    const shapesContainer = document.getElementById('shapes-container');
+    const scoreValue = document.getElementById('scoreValue');
+    const highScoreValue = document.getElementById('highScoreValue');
+
+    /* 
+      SHAPES array includes:
+      A. 1x1 single block
+      B. 2-block horizontal
+      C. 2-block vertical
+      D. Square (2x2)
+      E. T shape
+      F. 4-long horizontal
+      G. 4-long vertical
+      H. 5-long horizontal
+      I. 5-long vertical
+      J. 9-block full square (3x3)
+      K. L shape (2x3)
+      L. Mirrored L shape (2x3)
+      M. Z shape (2x3)
+      N. Mirror Z shape (2x3)
+      O. L shape (3x3) orientation 1
+      P. L shape (3x3) orientation 2
+      Q. L shape (3x3) orientation 3
+      R. L shape (3x3) orientation 4
+    */
+    const SHAPES = [
+      { blocks: [[1]], color: 'color1' },
+      { blocks: [[1,1]], color: 'color2' },
+      { blocks: [[1],[1]], color: 'color3' },
+      { blocks: [[1,1],[1,1]], color: 'color4' },
+      { blocks: [[1,1,1],[0,1,0]], color: 'color5' },
+      { blocks: [[1,1,1,1]], color: 'color6' },
+      { blocks: [[1],[1],[1],[1]], color: 'color7' },
+      { blocks: [[1,1,1,1,1]], color: 'color1' },
+      { blocks: [[1],[1],[1],[1],[1]], color: 'color2' },
+      { blocks: [[1,1,1],[1,1,1],[1,1,1]], color: 'color3' },
+      { blocks: [[1,0],[1,0],[1,1]], color: 'color4' },
+      { blocks: [[0,1],[0,1],[1,1]], color: 'color5' },
+      { blocks: [[1,1,0],[0,1,1]], color: 'color6' },
+      { blocks: [[0,1,1],[1,1,0]], color: 'color7' },
+      { blocks: [[1,0,0],[1,0,0],[1,1,0]], color: 'color1' },
+      { blocks: [[1,1,1],[1,0,0],[0,0,0]], color: 'color2' },
+      { blocks: [[1,1,0],[0,1,0],[0,1,0]], color: 'color3' },
+      { blocks: [[0,0,1],[1,1,1],[0,0,0]], color: 'color4' }
+    ];
+
+    // Initialize board array
+    for (let r = 0; r < ROWS; r++) {
+      board[r] = [];
+      for (let c = 0; c < COLS; c++) {
+        board[r][c] = 0;
+      }
+    }
+
+    // Create board cells
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const cell = document.createElement('div');
+        cell.className = 'cell';
+        cell.id = `cell-${r}-${c}`;
+        cell.addEventListener('dragenter', e => { e.preventDefault(); });
+        cell.addEventListener('dragover', e => {
+          e.preventDefault();
+          const parts = cell.id.split('-');
+          updatePreview(parseInt(parts[1]), parseInt(parts[2]));
+        });
+        cell.addEventListener('dragleave', e => { clearPreview(); });
+        cell.addEventListener('drop', onDrop);
+        boardDiv.appendChild(cell);
+      }
+    }
+    boardDiv.addEventListener('dragleave', e => {
+      if (!boardDiv.contains(e.relatedTarget)) clearPreview();
+    });
+
+    generateShapes();
+
+    document.getElementById('restartButton').addEventListener('click', resetGame);
+
+    function onDrop(e) {
+      e.preventDefault();
+      clearPreview();
+      const shapeId = e.dataTransfer.getData('text');
+      const shapeObj = window.currentShapes[shapeId];
+      if (!shapeObj) return;
+      const cellId = e.target.id;
+      if (!cellId.startsWith('cell-')) return;
+      const parts = cellId.split('-');
+      const row = parseInt(parts[1]), col = parseInt(parts[2]);
+      if (canPlaceShape(row, col, shapeObj)) {
+        placeShape(row, col, shapeObj);
+        const shapeDiv = document.getElementById(shapeId);
+        shapesContainer.removeChild(shapeDiv);
+        delete window.currentShapes[shapeId];
+        checkAndClearLines();
+        updateScore();
+        if (Object.keys(window.currentShapes).length === 0) {
+          generateShapes();
+        }
+      }
+      currentDraggingShape = null;
+      currentDraggingId = null;
+    }
+
+    function canPlaceShape(row, col, shapeObj) {
+      const blocks = shapeObj.blocks;
+      for (let r = 0; r < blocks.length; r++) {
+        for (let c = 0; c < blocks[r].length; c++) {
+          if (blocks[r][c] === 1) {
+            const br = row + r, bc = col + c;
+            if (br < 0 || br >= ROWS || bc < 0 || bc >= COLS) return false;
+            if (board[br][bc] !== 0) return false;
+          }
+        }
+      }
+      return true;
+    }
+
+    function placeShape(row, col, shapeObj) {
+      const blocks = shapeObj.blocks;
+      for (let r = 0; r < blocks.length; r++) {
+        for (let c = 0; c < blocks[r].length; c++) {
+          if (blocks[r][c] === 1) {
+            const br = row + r, bc = col + c;
+            board[br][bc] = shapeObj.color;
+            const cellDiv = document.getElementById(`cell-${br}-${bc}`);
+            cellDiv.classList.add(shapeObj.color);
+          }
+        }
+      }
+      const placedCount = blocks.reduce((sum, rowArr) => sum + rowArr.reduce((s, v) => s + v, 0), 0);
+      score += placedCount;
+    }
+
+    // Flash cells before clearing full rows/columns
+    function checkAndClearLines() {
+      for (let r = 0; r < ROWS; r++) {
+        if (board[r].every(cell => cell !== 0)) {
+          for (let c = 0; c < COLS; c++) {
+            const cellDiv = document.getElementById(`cell-${r}-${c}`);
+            cellDiv.classList.add('flash');
+          }
+          setTimeout(() => {
+            board[r] = Array(COLS).fill(0);
+            for (let c = 0; c < COLS; c++) {
+              const cellDiv = document.getElementById(`cell-${r}-${c}`);
+              cellDiv.className = 'cell';
+            }
+            score += COLS;
+            updateScore();
+          }, 300);
+        }
+      }
+      for (let c = 0; c < COLS; c++) {
+        let colFull = true;
+        for (let r = 0; r < ROWS; r++) {
+          if (board[r][c] === 0) { colFull = false; break; }
+        }
+        if (colFull) {
+          for (let r = 0; r < ROWS; r++) {
+            const cellDiv = document.getElementById(`cell-${r}-${c}`);
+            cellDiv.classList.add('flash');
+          }
+          setTimeout(() => {
+            for (let r = 0; r < ROWS; r++) {
+              board[r][c] = 0;
+              const cellDiv = document.getElementById(`cell-${r}-${c}`);
+              cellDiv.className = 'cell';
+            }
+            score += ROWS;
+            updateScore();
+          }, 300);
+        }
+      }
+    }
+
+    function updateScore() {
+      scoreValue.textContent = score;
+    }
+
+    function updateHighScore() {
+      highScoreValue.textContent = highScore;
+    }
+
+    // Generate three shapes in the container
+    function generateShapes() {
+      window.currentShapes = {};
+      for (let i = 0; i < 3; i++) {
+        const randomIndex = Math.floor(Math.random() * SHAPES.length);
+        const shapeData = JSON.parse(JSON.stringify(SHAPES[randomIndex]));
+        const shapeId = 'shape-' + Date.now() + '-' + i;
+        window.currentShapes[shapeId] = shapeData;
+        const shapeDiv = renderShape(shapeData, shapeId);
+        shapesContainer.appendChild(shapeDiv);
+      }
+    }
+
+    // Render shape for the container (smaller scale)
+    function renderShape(shapeObj, shapeId) {
+      const shapeDiv = document.createElement('div');
+      shapeDiv.className = 'shape draggable';
+      shapeDiv.id = shapeId;
+      shapeDiv.draggable = true;
+      shapeDiv.addEventListener('dragstart', function(e) {
+        currentDraggingShape = shapeObj;
+        currentDraggingId = shapeId;
+        e.dataTransfer.setData('text', shapeId);
+        // Use a transparent drag image so our custom preview is visible.
+        const transparentImg = document.createElement('canvas');
+        transparentImg.width = 1; transparentImg.height = 1;
+        e.dataTransfer.setDragImage(transparentImg, 0, 0);
+      });
+      shapeDiv.addEventListener('dragend', function(e) {
+        clearPreview();
+        currentDraggingShape = null;
+        currentDraggingId = null;
+      });
+      const blocks = shapeObj.blocks;
+      for (let r = 0; r < blocks.length; r++) {
+        const rowDiv = document.createElement('div');
+        rowDiv.style.display = 'flex';
+        for (let c = 0; c < blocks[r].length; c++) {
+          const blockCell = document.createElement('div');
+          blockCell.className = 'shape-cell';
+          if (blocks[r][c] === 1) {
+            blockCell.classList.add(shapeObj.color);
+          } else {
+            blockCell.style.visibility = 'hidden';
+          }
+          rowDiv.appendChild(blockCell);
+        }
+        shapeDiv.appendChild(rowDiv);
+      }
+      return shapeDiv;
+    }
+
+    // Create the preview overlay to indicate snap location
+    function updatePreview(startRow, startCol) {
+      clearPreview();
+      if (!currentDraggingShape) return;
+      const valid = canPlaceShape(startRow, startCol, currentDraggingShape);
+      const blocks = currentDraggingShape.blocks;
+      for (let r = 0; r < blocks.length; r++) {
+        for (let c = 0; c < blocks[r].length; c++) {
+          if (blocks[r][c] === 1) {
+            const targetRow = startRow + r, targetCol = startCol + c;
+            if (targetRow < 0 || targetRow >= ROWS || targetCol < 0 || targetCol >= COLS) continue;
+            const preview = document.createElement('div');
+            preview.className = 'preview-block';
+            if (!valid) preview.classList.add('invalid');
+            // Each cell is 40px with a 2px gap (42px step)
+            preview.style.left = (targetCol * 42) + "px";
+            preview.style.top = (targetRow * 42) + "px";
+            preview.style.backgroundColor = getColor(currentDraggingShape.color);
+            boardDiv.appendChild(preview);
+          }
+        }
+      }
+    }
+
+    function clearPreview() {
+      document.querySelectorAll('.preview-block').forEach(el => el.parentNode.removeChild(el));
+    }
+
+    function getColor(colorClass) {
+      switch(colorClass) {
+        case 'color1': return '#FF6B6B';
+        case 'color2': return '#FFD93D';
+        case 'color3': return '#6BCB77';
+        case 'color4': return '#4D96FF';
+        case 'color5': return '#B983FF';
+        case 'color6': return '#FF9F1C';
+        case 'color7': return '#2EC4B6';
+        default: return '#ffffff';
+      }
+    }
+
+    // Restart game: update high score if needed, clear board, reset score, and generate new shapes.
+    function resetGame() {
+      if (score > highScore) {
+        highScore = score;
+        updateHighScore();
+      }
+      score = 0;
+      updateScore();
+      // Clear board array and DOM cells
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          board[r][c] = 0;
+          let cell = document.getElementById(`cell-${r}-${c}`);
+          cell.className = 'cell';
+        }
+      }
+      // Clear shapes container and generate new shapes
+      shapesContainer.innerHTML = '';
+      generateShapes();
+    }
+  </script>
+</body>
+</html>
